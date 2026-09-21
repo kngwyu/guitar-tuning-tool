@@ -1,0 +1,9 @@
+{
+  "name": "fretboard-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "astro dev", "build": "astro check && astro build", "preview": "astro preview", "test": "node --test src/lib/music.test.mjs" },
+  "dependencies": { "astro": "latest", "@astrojs/react": "latest", "react": "latest", "react-dom": "latest" },
+  "devDependencies": { "@astrojs/check": "latest", "typescript": "latest", "@types/react": "latest", "@types/react-dom": "latest" }
+}
