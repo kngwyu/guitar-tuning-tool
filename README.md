@@ -1,6 +1,8 @@
-# Fretboard
+# Guitar tuning tool
 
-A responsive guitar fretboard explorer built with Astro, React, TypeScript, Node.js, and npm.
+Vibe-coded web tool to check regular/irregular guitar tuning with scale.
+
+Available at https://knwgyu.github.io/gutiar-tuning-tool .
 
 ## Development
 
