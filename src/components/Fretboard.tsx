@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { TUNINGS, SHARPS, FLATS, SCALES, CHORDS, chordFunction, chordNotes, notesOutsideSelection, scaleNotes, noteName, octave, pitchClass } from '../lib/music.mjs';
+import { TUNINGS, SHARPS, FLATS, SCALES, CHORDS, chordsInScale, chordFunction, chordNotes, notesOutsideSelection, scaleNotes, noteName, octave, pitchClass } from '../lib/music.mjs';
 
 export default function Fretboard() {
   const [tuningId, setTuningId] = useState('standard');
@@ -16,6 +16,15 @@ export default function Fretboard() {
   const [leftHanded, setLeftHanded] = useState(false);
   const tuning = TUNINGS.find(t => t.id === tuningId);
   const names = flats ? FLATS : SHARPS;
+  const scaleChords = chordsInScale(root, scaleId);
+  const shortcutValue = scaleChords.find(chord => chord.root === chordRoot && chord.id === chordId)?.value ?? '';
+  function chooseScaleChord(value: string) {
+    const chord = scaleChords.find(chord => chord.value === value);
+    if (chord) {
+      setChordRoot(chord.root);
+      setChordId(chord.id);
+    }
+  }
   const selectedChordFunction = chordFunction(root, scaleId, chordRoot, chordId);
   const outsideNotes = notesOutsideSelection(selectedChordNotes, selectedNotes);
   const selectionName = scaleId === 'custom' ? 'the custom selection' : `${names[root]} ${SCALES.find(scale => scale.id === scaleId)?.name.toLowerCase()}`;
@@ -97,6 +106,16 @@ export default function Fretboard() {
           <p className="selection-description" aria-live="polite">{scaleId === 'custom'
             ? selectedNotes.length === 0 ? selectedChordNotes.length > 0 ? 'Chord tones shown. Select scale notes to compare.' : 'All notes shown. Select any combination of notes to highlight.' : `Custom notes: ${selectedNotes.map(note => names[note]).join(' · ')}`
             : `${names[root]} ${SCALES.find(scale => scale.id === scaleId)?.name.toLowerCase()}: ${selectedNotes.map(note => names[note]).join(' · ')}. Edit any note to switch to Custom.`}</p>
+          {scaleId !== 'custom' && <div className="scale-chord-shortcut">
+            <label htmlFor="scale-chord">CHORD IN SCALE<select id="scale-chord" value={shortcutValue} onChange={e => chooseScaleChord(e.target.value)} aria-describedby="scale-chord-help">
+              <option value="" disabled>{chordId === 'none' ? 'Choose a chord…' : 'Current chord is outside this list'}</option>
+              {['Triads', 'Seventh chords', 'Suspended chords'].map(group => {
+                const choices = scaleChords.filter(chord => chord.group === group);
+                return choices.length > 0 && <optgroup key={group} label={group}>{choices.map(chord => <option key={chord.value} value={chord.value}>{names[chord.root]} {chord.name.toLowerCase()}</option>)}</optgroup>;
+              })}
+            </select></label>
+            <p id="scale-chord-help">Shortcut: choose a chord using only notes in {selectionName}.</p>
+          </div>}
           <div className="scale-controls chord-controls">
             <label htmlFor="chord">CHORD<select id="chord" value={chordId} onChange={e => setChordId(e.target.value)}><option value="none">None</option>{CHORDS.map(chord => <option key={chord.id} value={chord.id}>{chord.name}</option>)}</select></label>
             <label htmlFor="chord-root">CHORD ROOT<select id="chord-root" value={chordRoot} onChange={e => setChordRoot(Number(e.target.value))}>{names.map((name, i) => <option key={i} value={i}>{name}</option>)}</select></label>

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TUNINGS, SCALES, CHORDS, chordFunction, chordNotes, notesOutsideSelection, scaleNotes, noteName, octave, pitchClass } from './music.mjs';
+import { TUNINGS, SCALES, CHORDS, chordsInScale, chordFunction, chordNotes, notesOutsideSelection, scaleNotes, noteName, octave, pitchClass } from './music.mjs';
 test('standard tuning runs from E2 to E4', () => {
   assert.deepEqual(TUNINGS[0].notes.map(n => noteName(n) + octave(n)), ['E2', 'A2', 'D3', 'G3', 'B3', 'E4']);
 });
@@ -110,4 +110,28 @@ test('primary chord functions follow the selected tonic and update independently
   assert.equal(chordFunction(0, 'custom', 0, 'major'), 'Function unavailable for this selection');
   assert.equal(chordFunction(0, 'major-pentatonic', 7, 'major'), 'Function unavailable for this selection');
   assert.equal(chordFunction(0, 'major', 0, 'none'), null);
+});
+
+test('C major shortcut includes the seven diatonic triads in scale order', () => {
+  const chords = chordsInScale(0, 'major');
+  assert.deepEqual(chords.filter(chord => chord.group === 'Triads').map(({ root, id }) => [root, id]),
+    [[0, 'major'], [2, 'minor'], [4, 'minor'], [5, 'major'], [7, 'major'], [9, 'minor'], [11, 'diminished']]);
+  assert.ok(chords.some(chord => chord.root === 7 && chord.id === 'dominant-7'));
+  assert.ok(!chords.some(chord => chord.root === 2 && chord.id === 'major'));
+});
+test('shortcut reflects minor scale quality, transposition, and custom selection', () => {
+  assert.ok(chordsInScale(9, 'natural-minor').some(chord => chord.root === 4 && chord.id === 'minor'));
+  assert.ok(chordsInScale(9, 'harmonic-minor').some(chord => chord.root === 4 && chord.id === 'major'));
+  assert.ok(chordsInScale(11, 'major').some(chord => chord.root === 6 && chord.id === 'major'));
+  assert.deepEqual(chordsInScale(0, 'custom'), []);
+});
+test('shortcut options are unique and contain only scale tones for every scale and root', () => {
+  for (const scale of SCALES) for (let root = 0; root < 12; root++) {
+    const choices = chordsInScale(root, scale.id);
+    assert.ok(choices.length > 0);
+    assert.equal(new Set(choices.map(chord => chord.value)).size, choices.length);
+    for (const chord of choices) {
+      assert.deepEqual(notesOutsideSelection(chordNotes(chord.root, chord.id), scaleNotes(root, scale.id)), []);
+    }
+  }
 });

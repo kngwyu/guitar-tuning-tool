@@ -85,3 +85,16 @@ export function chordFunction(scaleRoot, scaleId, chordRoot, chordId) {
   if (degree === -1) return 'Root outside scale';
   return `Other degree · ${['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][degree]}`;
 }
+
+/** List supported chords whose tones all belong to the selected scale.
+ * @param {number} root @param {string} scaleId
+ */
+export function chordsInScale(root, scaleId) {
+  if (scaleId === 'custom') return [];
+  const notes = scaleNotes(root, scaleId);
+  return notes.flatMap(chordRoot => CHORDS
+    .filter(chord => chordNotes(chordRoot, chord.id).every(note => notes.includes(note)))
+    .map(chord => ({ root: chordRoot, id: chord.id, name: chord.name,
+      group: chord.id === 'sus2' || chord.id === 'sus4' ? 'Suspended chords' : chord.intervals.length === 4 ? 'Seventh chords' : 'Triads',
+      value: `${chordRoot}:${chord.id}` })));
+}
