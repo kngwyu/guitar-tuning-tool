@@ -44,3 +44,44 @@ export function scaleNotes(root, scaleId) {
   if (!scale) throw new Error(`Unknown scale: ${scaleId}`);
   return scale.intervals.map(interval => pitchClass(root + interval));
 }
+
+export const CHORDS = [
+  { id: 'major', name: 'Major', intervals: [0, 4, 7] },
+  { id: 'minor', name: 'Minor', intervals: [0, 3, 7] },
+  { id: 'diminished', name: 'Diminished', intervals: [0, 3, 6] },
+  { id: 'augmented', name: 'Augmented', intervals: [0, 4, 8] },
+  { id: 'sus2', name: 'Sus2', intervals: [0, 2, 7] },
+  { id: 'sus4', name: 'Sus4', intervals: [0, 5, 7] },
+  { id: 'major-7', name: 'Major 7', intervals: [0, 4, 7, 11] },
+  { id: 'minor-7', name: 'Minor 7', intervals: [0, 3, 7, 10] },
+  { id: 'dominant-7', name: 'Dominant 7', intervals: [0, 4, 7, 10] },
+  { id: 'half-diminished-7', name: 'Half-diminished 7', intervals: [0, 3, 6, 10] },
+];
+export function chordNotes(root, chordId) {
+  if (chordId === 'none') return [];
+  const chord = CHORDS.find(chord => chord.id === chordId);
+  if (!chord) throw new Error(`Unknown chord: ${chordId}`);
+  return chord.intervals.map(interval => pitchClass(root + interval));
+}
+/** @param {number[]} notes @param {number[]} selection */
+export function notesOutsideSelection(notes, selection) {
+  return notes.filter(note => !selection.includes(note));
+}
+
+/** Classify primary chord roots; this is a scale-degree label, not contextual harmonic analysis.
+ * @param {number} scaleRoot @param {string} scaleId
+ * @param {number} chordRoot @param {string} chordId
+ */
+export function chordFunction(scaleRoot, scaleId, chordRoot, chordId) {
+  if (chordId === 'none') return null;
+  const scale = SCALES.find(scale => scale.id === scaleId);
+  if (!scale || scale.intervals.length !== 7) return 'Function unavailable for this selection';
+  const interval = pitchClass(chordRoot - scaleRoot);
+  // A primary root can still carry borrowed notes; membership is shown separately.
+  if (interval === 0) return 'Tonic · I';
+  if (interval === 5) return 'Subdominant · IV';
+  if (interval === 7) return 'Dominant · V';
+  const degree = scale.intervals.indexOf(interval);
+  if (degree === -1) return 'Root outside scale';
+  return `Other degree · ${['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][degree]}`;
+}

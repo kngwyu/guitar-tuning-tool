@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { TUNINGS, SHARPS, FLATS, SCALES, scaleNotes, noteName, octave, pitchClass } from '../lib/music.mjs';
+import { TUNINGS, SHARPS, FLATS, SCALES, CHORDS, chordFunction, chordNotes, notesOutsideSelection, scaleNotes, noteName, octave, pitchClass } from '../lib/music.mjs';
 
 export default function Fretboard() {
   const [tuningId, setTuningId] = useState('standard');
@@ -9,10 +9,17 @@ export default function Fretboard() {
   const [customNotes, setCustomNotes] = useState<number[]>([]);
   const [scaleId, setScaleId] = useState('major');
   const [root, setRoot] = useState(0);
+  const [chordId, setChordId] = useState('none');
+  const [chordRoot, setChordRoot] = useState(0);
+  const selectedChordNotes = chordNotes(chordRoot, chordId);
   const selectedNotes = scaleId === 'custom' ? customNotes : scaleNotes(root, scaleId);
   const [leftHanded, setLeftHanded] = useState(false);
   const tuning = TUNINGS.find(t => t.id === tuningId);
   const names = flats ? FLATS : SHARPS;
+  const selectedChordFunction = chordFunction(root, scaleId, chordRoot, chordId);
+  const outsideNotes = notesOutsideSelection(selectedChordNotes, selectedNotes);
+  const selectionName = scaleId === 'custom' ? 'the custom selection' : `${names[root]} ${SCALES.find(scale => scale.id === scaleId)?.name.toLowerCase()}`;
+  const chordName = `${names[chordRoot]} ${CHORDS.find(chord => chord.id === chordId)?.name.toLowerCase()}`;
   const columns = Array.from({ length: frets + 1 }, (_, i) => i);
   if (leftHanded) columns.reverse();
   function toggleNote(note: number) {
@@ -51,7 +58,7 @@ export default function Fretboard() {
     <main>
       <section className="intro">
         <h1>Guitar Tuning Tool</h1>
-        <p>Select a guitar tuning and highlight notes in your selected scale.<br className="desktop-break" /> Customize individual tuning and choose any scales and notes.</p>
+        <p>Select a guitar tuning and highlight notes in your selected scale.<br className="desktop-break" /> Customize individual tuning and explore scales, chords, and notes.</p>
       </section>
       <section className="workspace" aria-label="Interactive guitar fretboard">
         <div className="controls">
@@ -69,24 +76,38 @@ export default function Fretboard() {
             <div className="neck">{[...strings].reverse().map((open, row) => <div className="string-row" key={row} style={{ '--string-width': `${1 + row * .45}px` } as CSSProperties}>{columns.map(f => {
               const n = open + f;
               const selected = selectedNotes.includes(pitchClass(n));
-              const dimmed = selectedNotes.length > 0 && !selected;
-              return <div className={`fret-cell ${f === 0 ? 'open-cell' : ''} ${leftHanded ? 'reversed' : ''}`} key={f}><button className={`note ${dimmed ? 'dimmed' : ''} ${selected ? 'highlighted' : ''} ${names[pitchClass(n)].length > 1 ? 'accidental' : ''}`} aria-label={`String ${row + 1}, ${f === 0 ? 'open' : `fret ${f}`}: ${noteName(n, flats)}${octave(n)}`} aria-pressed={selected} onClick={() => toggleNote(pitchClass(n))}>{noteName(n, flats)}</button></div>;
+              const chordTone = selectedChordNotes.includes(pitchClass(n));
+              const outside = chordTone && selectedNotes.length > 0 && !selected;
+              const dimmed = (selectedNotes.length > 0 || selectedChordNotes.length > 0) && !selected && !chordTone;
+              return <div className={`fret-cell ${f === 0 ? 'open-cell' : ''} ${leftHanded ? 'reversed' : ''}`} key={f}><button className={`note ${dimmed ? 'dimmed' : ''} ${selected ? 'highlighted' : ''} ${chordTone ? 'chord-tone' : ''} ${outside ? 'outside-scale' : ''} ${names[pitchClass(n)].length > 1 ? 'accidental' : ''}`} aria-label={`String ${row + 1}, ${f === 0 ? 'open' : `fret ${f}`}: ${noteName(n, flats)}${octave(n)}${selected ? ', in scale or custom selection' : ''}${chordTone ? ', chord tone' : ''}${outside ? ', outside scale or custom selection' : ''}`} aria-pressed={selected} onClick={() => toggleNote(pitchClass(n))}>{noteName(n, flats)}</button></div>;
             })}</div>)}</div>
             <div className="fret-markers" aria-hidden="true">{columns.map(f => <span key={f}>{f > 0 && f % 12 === 0 ? '● ●' : [3, 5, 7, 9].includes(f % 12) ? '●' : ''}</span>)}</div>
           </div>
         </div>
-        <div className="board-footer"><span><i className="legend-dot" /> Click a note to find it across the fretboard</span><label className="toggle-label"><input type="checkbox" checked={leftHanded} onChange={e => setLeftHanded(e.target.checked)} /> Left-handed view</label></div>
+        <div className="board-footer"><span><i className="legend-dot" /> Click a note to edit the scale selection</span><label className="toggle-label"><input type="checkbox" checked={leftHanded} onChange={e => setLeftHanded(e.target.checked)} /> Left-handed view</label></div>
         <div className="highlight-panel scale-panel">
-          <div className="scale-controls">
+          <div className="selector-stack"><div className="scale-controls">
             <label htmlFor="scale">SCALE<select id="scale" value={scaleId} onChange={e => chooseScale(e.target.value)}><option value="custom">Custom notes</option>{SCALES.map(scale => <option key={scale.id} value={scale.id}>{scale.name}</option>)}</select></label>
             <label htmlFor="scale-root">ROOT NOTE<select id="scale-root" value={root} onChange={e => changeRoot(Number(e.target.value))}>{names.map((name, i) => <option key={i} value={i}>{name}</option>)}</select></label>
           </div>
-          <div className="highlight-heading"><h3>Note highlighting</h3><p>Select a scale or choose custom notes.</p></div>
-          <button className="clear-button" onClick={clearNotes} disabled={selectedNotes.length === 0}>Clear ↺</button>
-          <div className="note-filters" role="group" aria-label="Notes to highlight">{names.map((name, i) => <button key={i} aria-pressed={selectedNotes.includes(i)} onClick={() => toggleNote(i)}>{name}</button>)}</div>
+          </div>
+          <div className="highlight-heading"><h3>Note highlighting</h3><p>Select a scale or custom notes, then add a chord overlay.</p></div>
+          <button className="clear-button" onClick={clearNotes} disabled={selectedNotes.length === 0}>Clear scale notes ↺</button>
+          <div className="note-filters" role="group" aria-label="Notes to highlight">{names.map((name, i) => <button key={i} className={`${selectedChordNotes.includes(i) ? 'chord-tone' : ''} ${selectedNotes.length > 0 && outsideNotes.includes(i) ? 'outside-scale' : ''}`} aria-label={`${name}${selectedNotes.includes(i) ? ', in scale or custom selection' : ''}${selectedChordNotes.includes(i) ? ', chord tone' : ''}${selectedNotes.length > 0 && outsideNotes.includes(i) ? ', outside scale or custom selection' : ''}`} aria-pressed={selectedNotes.includes(i)} onClick={() => toggleNote(i)}>{name}</button>)}</div>
           <p className="selection-description" aria-live="polite">{scaleId === 'custom'
-            ? selectedNotes.length === 0 ? 'All notes shown. Select any combination of notes to highlight.' : `Custom notes: ${selectedNotes.map(note => names[note]).join(' · ')}`
+            ? selectedNotes.length === 0 ? selectedChordNotes.length > 0 ? 'Chord tones shown. Select scale notes to compare.' : 'All notes shown. Select any combination of notes to highlight.' : `Custom notes: ${selectedNotes.map(note => names[note]).join(' · ')}`
             : `${names[root]} ${SCALES.find(scale => scale.id === scaleId)?.name.toLowerCase()}: ${selectedNotes.map(note => names[note]).join(' · ')}. Edit any note to switch to Custom.`}</p>
+          <div className="scale-controls chord-controls">
+            <label htmlFor="chord">CHORD<select id="chord" value={chordId} onChange={e => setChordId(e.target.value)}><option value="none">None</option>{CHORDS.map(chord => <option key={chord.id} value={chord.id}>{chord.name}</option>)}</select></label>
+            <label htmlFor="chord-root">CHORD ROOT<select id="chord-root" value={chordRoot} onChange={e => setChordRoot(Number(e.target.value))}>{names.map((name, i) => <option key={i} value={i}>{name}</option>)}</select></label>
+            <div className="chord-function" role="status" aria-live="polite"><span>CHORD FUNCTION</span><strong>{selectedChordFunction ?? 'Select a chord'}</strong><small>Based on the chord root relative to the scale tonic.</small></div>
+          </div>
+          {chordId !== 'none' && <p className="chord-description" aria-live="polite"><strong>{chordName} · {selectedChordNotes.map(note => names[note]).join(' · ')}</strong>{selectedNotes.length > 0 && <span>{outsideNotes.length === 0 ? `All chord notes are in ${selectionName}.` : `${outsideNotes.map(note => names[note]).join(', ')} ${outsideNotes.length === 1 ? 'is' : 'are'} outside ${selectionName}.`}</span>}</p>}
+          <div className="note-legend" aria-label="Note highlighting legend">
+            <span><i className="legend-swatch scale-swatch" aria-hidden="true" />Scale / custom notes</span>
+            <span><i className="legend-swatch chord-swatch" aria-hidden="true" />Chord tone (ring)</span>
+            <span><i className="legend-swatch outside-swatch" aria-hidden="true" />Chord tone outside scale</span>
+          </div>
         </div>
       </section>
     </main>
